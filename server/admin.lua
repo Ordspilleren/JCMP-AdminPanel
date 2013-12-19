@@ -5,6 +5,7 @@ local adminPrefix = "[Admin] "
 -- Change this value to whatever your STEAM ID is! (Type /id in-game)
 
 local admins = { }
+local noWarpTable = {}
 				
 local admincount = 0
 
@@ -27,10 +28,13 @@ local vehicleKilled = "Your vehicle has been destroyed."
 local notEnoughMoneyKill = "You need at least $100 to destroy your vehicle."
 local steamID = "Your Steam ID is: "
 local playerTeleport = "You teleported to "
+local playerTeleportDisabled = " has disabled teleporting to them."
+local playerTeleportOn = "Players can now teleport to you."
+local playerTeleportOff = "Players can no longer teleport to you."
 
-local showJoin = true
-local showLeave = true
-local adminKillReward = true
+local showJoin = false
+local showLeave = false
+local adminKillReward = false
 
 local timerMessage = ""
 
@@ -47,7 +51,8 @@ local timerMessage = ""
 -- /repair (Cost $300)
 -- /killcar (Cost $100)
 -- /id
--- /ptp <player>
+-- /goto <player>
+-- /tgoto
 -- /online
 -- /sky
 -- /addmoney <player> <amount> (ADMIN)
@@ -101,6 +106,8 @@ function admin:PlayerJoin( args )
 end
 
 function admin:PlayerQuit( args )
+	local steamid = args.player:GetSteamId().id
+	noWarpTable[steamid] = nil
 	if showLeave then
 		Chat:Broadcast("Leave> " .. args.player:GetName() .. " left the server!", Color(255,215,0))
 	end
@@ -336,7 +343,7 @@ function admin:PlayerChat( args )
 		args.player:SendChatMessage(steamID .. tostring(args.player:GetSteamId()), Color(255, 255, 255))
 	end
 	
-	if(cmd_args[1]) == "/ptp" then
+	if(cmd_args[1]) == "/goto" then
 		if #cmd_args < 2 then
 			args.player:SendChatMessage(invalidArgs, Color(255, 0, 0))
 			return false
@@ -348,9 +355,30 @@ function admin:PlayerChat( args )
 			return false
 		end
 		
-		args.player:Teleport(player:GetPosition(), player:GetAngle())
-		args.player:SendChatMessage(playerTeleport .. tostring(player:GetName()), Color(250, 0, 0))
-		player:SendChatMessage(args.player:GetName() .. playerTele2, Color(250, 0, 0))
+		local steamid = player:GetSteamId().id
+		local cantwarp = noWarpTable[steamid]
+		
+		if not cantwarp then
+			args.player:Teleport(player:GetPosition(), player:GetAngle())
+			args.player:SendChatMessage(playerTeleport .. tostring(player:GetName()), Color(250, 0, 0))
+			player:SendChatMessage(args.player:GetName() .. playerTele2, Color(250, 0, 0))
+			return true
+		else
+			args.player:SendChatMessage(tostring(player:GetName()) .. playerTeleportDisabled, Color(250, 0, 0))
+			return false
+		end
+	end
+
+	if(cmd_args[1]) == "/tgoto" then
+		local steamid = args.player:GetSteamId().id
+		noWarpTable[steamid] = not noWarpTable[steamid]
+		if not noWarpTable[steamid] then
+			args.player:SendChatMessage(playerTeleportOn, Color(250, 0, 0))
+			Chat:Send(player, "People can now warp to you.", Color(200, 50, 200))
+		else
+			args.player:SendChatMessage(playerTeleportOff, Color(250, 0, 0))
+			Chat:Send(player, "People can no longer warp to you.", Color(200, 50, 200))
+		end
 		return true
 	end
 	
